@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import requests
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
@@ -37,11 +40,18 @@ async def upload(file: UploadFile = File(...)):
     pdf_path = storage.save_source_pdf(doc_id, content)
     meta = storage.save_meta(doc_id, file.filename, pdf_path)
 
+    kb_summary = {}
+    try:
+        kb_summary = storage.build_knowledge_base(doc_id, pdf_path)
+    except storage.ProcessingError as e:
+        kb_summary = {"error": str(e)}  
+
     return JSONResponse({
         "doc_id": doc_id,
         "filename": file.filename,
         "size_bytes": len(content),
         "created_at": meta["created_at"],
+        "kb": kb_summary,
     })
 
 @api.get("/")

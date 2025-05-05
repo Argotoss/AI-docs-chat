@@ -7,6 +7,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama serve & sleep 10 && ollama pull nomic-embed-text && wait"]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
