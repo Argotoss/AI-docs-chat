@@ -6,7 +6,11 @@ Simple FastAPI service to upload PDFs, extract text, chunk, embed with Ollama, a
 ```bash
 docker-compose up --build
 ```
-This will start Ollama, pull the `nomic-embed-text` model, and launch the API on port 8000.
+This will start Ollama, pull the `nomic-embed-text` and `llama3.1:8b` models, and launch the API on port 8000.
+
+## Endpoints
+- `POST /upload` - Upload PDF, extract text, chunk, embed, save KB.
+- `POST /ask` - Query KB: `{"doc_id": "...", "question": "..."}` → `{"answer": "...", "citations": [...]}`
 
 ## Upload Flow
 1. POST `/upload` with a PDF file
@@ -23,8 +27,10 @@ This will start Ollama, pull the `nomic-embed-text` model, and launch the API on
 |----------|---------|-------------|
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Base URL for local Ollama instance |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model name to request from Ollama |
+| `CHAT_MODEL` | `llama3.1:8b` | Chat model for Q&A generation |
 | `CHUNK_CHARS` | `1000` | Target max characters per chunk |
 | `CHUNK_OVERLAP` | `150` | Overlap size between consecutive chunks |
+| `TOP_K` | `5` | Number of top chunks to retrieve for Q&A |
 | `MAX_FILE_MB` | `50` | Max upload size in megabytes |
 
 ## Data Artifacts per Document

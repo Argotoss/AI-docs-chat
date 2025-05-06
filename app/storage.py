@@ -44,6 +44,8 @@ DEFAULT_CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "1000"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "150"))
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "llama3.1:8b")
+TOP_K = int(os.getenv("TOP_K", "5"))
 
 
 class ProcessingError(Exception):
@@ -156,4 +158,86 @@ def build_knowledge_base(doc_id: str, pdf_path: str, *, chunk_chars: int = DEFAU
     embeddings = embed_chunks(chunks)
     saved = save_chunks_and_embeddings(doc_id, chunks, embeddings)
     return saved
+
+
+# ---------------- Retrieval & Q&A ---------------- #
+
+def load_chunks(doc_id: str) -> List[Dict]:
+    """Load chunks from jsonl file."""
+    path = os.path.join(DATA_DIR, doc_id, "chunks.jsonl")
+    chunks = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            chunks.append(json.loads(line))
+    return chunks
+
+
+def load_embeddings(doc_id: str) -> np.ndarray:
+    """Load embeddings from npy file."""
+    path = os.path.join(DATA_DIR, doc_id, "embeddings.npy")
+    return np.load(path)
+
+
+def embed_query(query: str, model: str = EMBED_MODEL, base_url: str = OLLAMA_BASE_URL, timeout: float = 60.0) -> List[float]:
+    """Embed a single query string."""
+    import requests
+    url = f"{base_url.rstrip('/')}/api/embeddings"
+    payload = {"model": model, "prompt": query}
+    r = requests.post(url, json=payload, timeout=timeout)
+    if not r.ok:
+        raise ProcessingError(f"Query embedding failed HTTP {r.status_code}: {r.text[:200]}")
+    data = r.json()
+    emb = data.get("embedding")
+    if not emb:
+        raise ProcessingError("No 'embedding' in query response")
+    return emb
+
+
+def compute_cosine_similarity(query_emb: List[float], embeddings: np.ndarray) -> np.ndarray:
+    """Compute cosine similarity between query and all embeddings."""
+    query_vec = np.array(query_emb)
+    norms_q = np.linalg.norm(query_vec)
+    norms_e = np.linalg.norm(embeddings, axis=1)
+    dot_products = np.dot(embeddings, query_vec)
+    similarities = dot_products / (norms_e * norms_q)
+    return similarities
+
+
+def get_top_k_chunks(chunks: List[Dict], similarities: np.ndarray, k: int = TOP_K) -> List[Dict]:
+    """Return top-k chunks by similarity."""
+    top_indices = np.argsort(similarities)[::-1][:k]
+    return [chunks[i] for i in top_indices]
+
+
+def generate_answer(context: str, question: str, model: str = CHAT_MODEL, base_url: str = OLLAMA_BASE_URL, timeout: float = 300.0) -> str:
+    """Generate answer using chat model with context."""
+    import requests
+    prompt = f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer concisely with citations to page numbers if relevant."
+    url = f"{base_url.rstrip('/')}/api/chat"
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False
+    }
+    r = requests.post(url, json=payload, timeout=timeout)
+    if not r.ok:
+        raise ProcessingError(f"Chat failed HTTP {r.status_code}: {r.text[:200]}")
+    data = r.json()
+    answer = data.get("message", {}).get("content", "")
+    if not answer:
+        raise ProcessingError("No answer in chat response")
+    return answer
+
+
+def ask_question(doc_id: str, question: str, k: int = TOP_K) -> Dict:
+    """Full retrieval + Q&A pipeline."""
+    chunks = load_chunks(doc_id)
+    embeddings = load_embeddings(doc_id)
+    query_emb = embed_query(question)
+    similarities = compute_cosine_similarity(query_emb, embeddings)
+    top_chunks = get_top_k_chunks(chunks, similarities, k)
+    context = "\n\n".join([f"Page {c['page']}: {c['text']}" for c in top_chunks])
+    answer = generate_answer(context, question)
+    citations = [{"page": c["page"], "chunk_id": c["id"]} for c in top_chunks]
+    return {"answer": answer, "citations": citations}
 

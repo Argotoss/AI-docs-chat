@@ -54,6 +54,14 @@ async def upload(file: UploadFile = File(...)):
         "kb": kb_summary,
     })
 
-@api.get("/")
-def root():
-    return {"ok": True, "docs": "/docs", "health": "/health"}
+@api.post("/ask")
+async def ask(request: dict):
+    doc_id = request.get("doc_id")
+    question = request.get("question")
+    if not doc_id or not question:
+        raise HTTPException(status_code=400, detail="doc_id and question required")
+    try:
+        result = storage.ask_question(doc_id, question)
+        return JSONResponse(result)
+    except storage.ProcessingError as e:
+        raise HTTPException(status_code=500, detail=str(e))
