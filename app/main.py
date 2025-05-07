@@ -69,3 +69,30 @@ async def ask(request: Dict[str, str]) -> JSONResponse:
         return JSONResponse(result)
     except storage.ProcessingError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@api.get("/documents")
+def list_documents() -> JSONResponse:
+    """List all uploaded documents with metadata and chunk counts."""
+    try:
+        docs = storage.list_documents()
+        return JSONResponse({"documents": docs})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api.get("/documents/{doc_id}")
+def get_document(doc_id: str) -> JSONResponse:
+    """Get detailed metadata for a specific document."""
+    try:
+        details = storage.get_document_details(doc_id)
+        return JSONResponse(details)
+    except storage.ProcessingError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@api.delete("/documents/{doc_id}")
+def delete_document(doc_id: str) -> JSONResponse:
+    """Delete a document and all its associated files."""
+    try:
+        storage.delete_document(doc_id)
+        return JSONResponse({"message": f"Document {doc_id} deleted"})
+    except storage.ProcessingError as e:
+        raise HTTPException(status_code=404, detail=str(e))

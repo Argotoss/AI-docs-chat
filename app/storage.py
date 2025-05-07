@@ -241,3 +241,56 @@ def ask_question(doc_id: str, question: str, k: int = TOP_K) -> Dict:
     citations = [{"page": c["page"], "chunk_id": c["id"]} for c in top_chunks]
     return {"answer": answer, "citations": citations}
 
+
+def list_documents() -> List[Dict]:
+    """Return list of all documents with metadata and counts."""
+    docs = []
+    if not os.path.exists(DATA_DIR):
+        return docs
+    for item in os.listdir(DATA_DIR):
+        doc_dir = os.path.join(DATA_DIR, item)
+        if os.path.isdir(doc_dir):
+            meta_path = os.path.join(doc_dir, "meta.json")
+            if os.path.exists(meta_path):
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                chunk_count = 0
+                chunks_path = os.path.join(doc_dir, "chunks.jsonl")
+                if os.path.exists(chunks_path):
+                    with open(chunks_path, "r", encoding="utf-8") as f:
+                        chunk_count = sum(1 for _ in f)
+                meta["chunk_count"] = chunk_count
+                docs.append(meta)
+    return docs
+
+
+def get_document_details(doc_id: str) -> Dict:
+    """Return detailed metadata for a document, including counts."""
+    meta_path = os.path.join(DATA_DIR, doc_id, "meta.json")
+    if not os.path.exists(meta_path):
+        raise ProcessingError(f"Document {doc_id} not found")
+    with open(meta_path, "r", encoding="utf-8") as f:
+        meta = json.load(f)
+    chunk_count = 0
+    embedding_dim = 0
+    chunks_path = os.path.join(DATA_DIR, doc_id, "chunks.jsonl")
+    if os.path.exists(chunks_path):
+        with open(chunks_path, "r", encoding="utf-8") as f:
+            chunk_count = sum(1 for _ in f)
+    embeddings_path = os.path.join(DATA_DIR, doc_id, "embeddings.npy")
+    if os.path.exists(embeddings_path):
+        arr = np.load(embeddings_path)
+        embedding_dim = arr.shape[1] if arr.size > 0 else 0
+    meta["chunk_count"] = chunk_count
+    meta["embedding_dim"] = embedding_dim
+    return meta
+
+
+def delete_document(doc_id: str):
+    """Delete all files for a document."""
+    import shutil
+    doc_dir = os.path.join(DATA_DIR, doc_id)
+    if not os.path.exists(doc_dir):
+        raise ProcessingError(f"Document {doc_id} not found")
+    shutil.rmtree(doc_dir)
+
