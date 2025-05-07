@@ -5,6 +5,7 @@ load_dotenv()
 import requests
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
+from typing import Dict, List, Union
 from . import storage
 
 api = FastAPI(title="AI Chat for Documents", version="0.0.1")
@@ -14,7 +15,8 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MAX_FILE_MB = int(os.getenv("MAX_FILE_MB", "50"))
 
 @api.get("/health")
-def health():
+def health() -> Dict[str, Union[bool, Dict[str, Union[bool, List[str]]]]]:
+    """Return health status of API and Ollama."""
     status = {"api": True, "ollama": {"reachable": False, "models": []}}
     try:
         r = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3)
@@ -28,7 +30,8 @@ def health():
     return status
 
 @api.post("/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...)) -> JSONResponse:
+    """Upload a PDF, process it into the knowledge base, and return metadata."""
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
     content = await file.read()
@@ -55,7 +58,8 @@ async def upload(file: UploadFile = File(...)):
     })
 
 @api.post("/ask")
-async def ask(request: dict):
+async def ask(request: Dict[str, str]) -> JSONResponse:
+    """Answer a question using retrieval from the specified document's knowledge base."""
     doc_id = request.get("doc_id")
     question = request.get("question")
     if not doc_id or not question:

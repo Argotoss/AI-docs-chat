@@ -132,7 +132,7 @@ def embed_chunks(chunks: List[Dict], model: str = EMBED_MODEL, base_url: str = O
     return embeddings
 
 
-def save_chunks_and_embeddings(doc_id: str, chunks: List[Dict], embeddings: List[List[float]]):
+def save_chunks_and_embeddings(doc_id: str, chunks: List[Dict], embeddings: List[List[float]]) -> Dict:
     """Persist chunks (jsonl) and embeddings (npy) and return summary info."""
     d = ensure_doc_dir(doc_id)
     chunks_path = os.path.join(d, "chunks.jsonl")
