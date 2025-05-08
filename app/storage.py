@@ -46,6 +46,9 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "llama3.1:8b")
 TOP_K = int(os.getenv("TOP_K", "5"))
+SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
+MAX_ANSWER_LENGTH = int(os.getenv("MAX_ANSWER_LENGTH", "500"))
+MIN_CHUNK_LENGTH = int(os.getenv("MIN_CHUNK_LENGTH", "100"))
 
 
 class ProcessingError(Exception):
@@ -96,16 +99,17 @@ def build_chunks(doc_id: str, pages: List[Dict], chunk_chars: int = DEFAULT_CHUN
     for p in pages:
         page_num = p["page"]
         for start, end, chunk_text in _yield_page_chunks(p["text"], page_num, chunk_chars, overlap):
-            chunks.append({
-                "id": f"{doc_id}:{idx}",
-                "doc_id": doc_id,
-                "index": idx,
-                "page": page_num,
-                "start": start,
-                "end": end,
-                "text": chunk_text,
-            })
-            idx += 1
+            if len(chunk_text.strip()) >= MIN_CHUNK_LENGTH:
+                chunks.append({
+                    "id": f"{doc_id}:{idx}",
+                    "doc_id": doc_id,
+                    "index": idx,
+                    "page": page_num,
+                    "start": start,
+                    "end": end,
+                    "text": chunk_text,
+                })
+                idx += 1
     return chunks
 
 
@@ -212,12 +216,13 @@ def get_top_k_chunks(chunks: List[Dict], similarities: np.ndarray, k: int = TOP_
 def generate_answer(context: str, question: str, model: str = CHAT_MODEL, base_url: str = OLLAMA_BASE_URL, timeout: float = 300.0) -> str:
     """Generate answer using chat model with context."""
     import requests
-    prompt = f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer concisely with citations to page numbers if relevant."
+    prompt = f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer concisely (under {MAX_ANSWER_LENGTH} words) with citations to page numbers if relevant."
     url = f"{base_url.rstrip('/')}/api/chat"
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "stream": False
+        "stream": False,
+        "options": {"temperature": 0}
     }
     r = requests.post(url, json=payload, timeout=timeout)
     if not r.ok:
@@ -235,7 +240,10 @@ def ask_question(doc_id: str, question: str, k: int = TOP_K) -> Dict:
     embeddings = load_embeddings(doc_id)
     query_emb = embed_query(question)
     similarities = compute_cosine_similarity(query_emb, embeddings)
-    top_chunks = get_top_k_chunks(chunks, similarities, k)
+    top_indices = np.argsort(similarities)[::-1][:k]
+    if similarities[top_indices[0]] < SIMILARITY_THRESHOLD:
+        return {"answer": "Not enough relevant information found in the document.", "citations": []}
+    top_chunks = [chunks[i] for i in top_indices]
     context = "\n\n".join([f"Page {c['page']}: {c['text']}" for c in top_chunks])
     answer = generate_answer(context, question)
     citations = [{"page": c["page"], "chunk_id": c["id"]} for c in top_chunks]
