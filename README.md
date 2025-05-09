@@ -1,37 +1,51 @@
 # AI-doc-chat
 
-Simple FastAPI service to upload PDFs, extract text, chunk, embed with Ollama, and store a lightweight knowledge base for future Q&A.
+FastAPI service for uploading PDFs, processing them into knowledge bases (text extraction, chunking, embeddings), and answering questions with retrieval-augmented generation. Supports document management, quality guardrails, and optional OCR for scanned PDFs.
 
 ## Quick Start
 ```bash
 docker-compose up --build
 ```
-This will start Ollama, pull the `nomic-embed-text` and `llama3.1:8b` models, and launch the API on port 8000.
+Starts Ollama, pulls `nomic-embed-text` and `llama3.1:8b` models, and launches the API on port 8000.
 
 ## Endpoints
-- `POST /upload` - Upload PDF, extract text, chunk, embed, save KB.
-- `POST /ask` - Query KB: `{"doc_id": "...", "question": "..."}` → `{"answer": "...", "citations": [...]}`
+- `GET /health` - Check API and Ollama status.
+- `POST /upload` - Upload PDF, process into KB, return metadata.
+- `POST /ask` - Query KB: `{"doc_id": "...", "question": "..."}` → `{"answer": "...", "citations": [...]}` or refusal if low relevance.
+- `GET /documents` - List all documents with metadata and chunk counts.
+- `GET /documents/{doc_id}` - Get detailed info for a document.
+- `DELETE /documents/{doc_id}` - Delete a document and all files.
 
-## Upload Flow
-1. POST `/upload` with a PDF file
-2. File saved under `data/<doc_id>/source.pdf`
-3. Metadata saved to `meta.json`
-4. Text extracted per page using PyMuPDF
-5. Text chunked into overlapping windows (defaults 1000 chars, 150 overlap)
-6. Each chunk embedded via Ollama embeddings API using model `nomic-embed-text`
-7. Chunks written to `chunks.jsonl` (one JSON object per line)
-8. Embeddings stored as NumPy array `embeddings.npy`
+## Upload & Processing Flow
+1. POST `/upload` with PDF file.
+2. File saved to `data/<doc_id>/source.pdf`.
+3. Metadata saved to `meta.json`.
+4. Text extracted per page (PyMuPDF); OCR fallback if enabled and page has no text.
+5. Text chunked into overlapping windows (filtered for min length).
+6. Chunks embedded via Ollama (`nomic-embed-text`).
+7. Chunks saved to `chunks.jsonl`; embeddings to `embeddings.npy`.
+
+## Q&A Flow
+1. Embed question with `nomic-embed-text`.
+2. Compute cosine similarity to stored embeddings.
+3. Retrieve top-k chunks (if similarity > threshold).
+4. Generate answer with `llama3.1:8b` (concise, cited, deterministic).
+5. Return answer + citations, or "Not enough relevant information" if low similarity.
 
 ## Environment Variables
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Base URL for local Ollama instance |
-| `EMBED_MODEL` | `nomic-embed-text` | Embedding model name to request from Ollama |
-| `CHAT_MODEL` | `llama3.1:8b` | Chat model for Q&A generation |
-| `CHUNK_CHARS` | `1000` | Target max characters per chunk |
-| `CHUNK_OVERLAP` | `150` | Overlap size between consecutive chunks |
-| `TOP_K` | `5` | Number of top chunks to retrieve for Q&A |
-| `MAX_FILE_MB` | `50` | Max upload size in megabytes |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama base URL |
+| `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
+| `CHAT_MODEL` | `llama3.1:8b` | Chat model for answers |
+| `CHUNK_CHARS` | `1000` | Max chars per chunk |
+| `CHUNK_OVERLAP` | `150` | Chunk overlap |
+| `TOP_K` | `5` | Top chunks for retrieval |
+| `MAX_FILE_MB` | `50` | Max upload size (MB) |
+| `SIMILARITY_THRESHOLD` | `0.3` | Min similarity to answer |
+| `MAX_ANSWER_LENGTH` | `500` | Max answer words |
+| `MIN_CHUNK_LENGTH` | `100` | Min chunk chars (filter noise) |
+| `ENABLE_OCR` | `false` | Enable OCR fallback for image PDFs |
 
 ## Data Artifacts per Document
 ```
@@ -41,8 +55,4 @@ data/<doc_id>/
 	chunks.jsonl        # {id, doc_id, index, page, start, end, text}
 	embeddings.npy      # float32 matrix (num_chunks x dim)
 ```
-
-## Future Work
-- Optional OCR fallback (Tesseract) when a page has little/no extracted text.
-- /ask endpoint to perform retrieval + LLM answer generation.
 
