@@ -46,6 +46,8 @@ Starts Ollama, pulls `nomic-embed-text` and `llama3.1:8b` models, and launches t
 | `MAX_ANSWER_LENGTH` | `500` | Max answer words |
 | `MIN_CHUNK_LENGTH` | `100` | Min chunk chars (filter noise) |
 | `ENABLE_OCR` | `false` | Enable OCR fallback for image PDFs |
+| `MAX_PAGES` | `100` | Max pages per PDF |
+| `MAX_CONTEXT_CHARS` | `8000` | Max context chars for Q&A |
 
 ## Data Artifacts per Document
 ```

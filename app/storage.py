@@ -9,7 +9,11 @@ import io
 DATA_DIR = os.path.join(os.getcwd(), "data")
 
 def ensure_doc_dir(doc_id: str) -> str:
-    """Create (if needed) and return absolute path for the document directory."""
+    """Create (if needed) and return absol    top_chunks = [chunks[i] for i in top_indices]
+    context = "\n\n".join([f"Page {c['page']}: {c['text']}" for c in top_chunks])
+    if len(context) > MAX_CONTEXT_CHARS:
+        context = context[:MAX_CONTEXT_CHARS] + "... (truncated)"
+    answer = generate_answer(context, question) path for the document directory."""
     d = os.path.join(DATA_DIR, doc_id)
     os.makedirs(d, exist_ok=True)
     return d
@@ -51,6 +55,8 @@ SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
 MAX_ANSWER_LENGTH = int(os.getenv("MAX_ANSWER_LENGTH", "500"))
 MIN_CHUNK_LENGTH = int(os.getenv("MIN_CHUNK_LENGTH", "100"))
 ENABLE_OCR = os.getenv("ENABLE_OCR", "false").lower() == "true"
+MAX_PAGES = int(os.getenv("MAX_PAGES", "100"))
+MAX_CONTEXT_CHARS = int(os.getenv("MAX_CONTEXT_CHARS", "8000"))
 
 
 class ProcessingError(Exception):
@@ -67,6 +73,9 @@ def extract_pdf_pages(pdf_path: str) -> List[Dict]:
         doc = fitz.open(pdf_path)
     except Exception as e:
         raise ProcessingError(f"Could not open PDF: {e}")
+    if len(doc) > MAX_PAGES:
+        doc.close()
+        raise ProcessingError(f"PDF has {len(doc)} pages, exceeds MAX_PAGES ({MAX_PAGES})")
     for i, page in enumerate(doc):
         try:
             text = page.get_text("text") or ""
