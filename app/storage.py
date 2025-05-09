@@ -7,6 +7,7 @@ import json
 import io
 
 DATA_DIR = os.path.join(os.getcwd(), "data")
+LOG_DIR = os.path.join(os.getcwd(), "logs")
 
 def ensure_doc_dir(doc_id: str) -> str:
     """Create (if needed) and return absol    top_chunks = [chunks[i] for i in top_indices]
@@ -257,16 +258,46 @@ def generate_answer(context: str, question: str, model: str = CHAT_MODEL, base_u
 
 def ask_question(doc_id: str, question: str, k: int = TOP_K) -> Dict:
     """Full retrieval + Q&A pipeline."""
+    start_time = time.time()
     chunks = load_chunks(doc_id)
     embeddings = load_embeddings(doc_id)
     query_emb = embed_query(question)
     similarities = compute_cosine_similarity(query_emb, embeddings)
     top_indices = np.argsort(similarities)[::-1][:k]
     if similarities[top_indices[0]] < SIMILARITY_THRESHOLD:
+        latency = time.time() - start_time
+        log_entry = {
+            "timestamp": int(time.time()),
+            "doc_id": doc_id,
+            "question": question,
+            "latency": latency,
+            "top_k_scores": [],
+            "truncated": False,
+            "refused": True
+        }
+        os.makedirs(LOG_DIR, exist_ok=True)
+        with open(os.path.join(LOG_DIR, "queries.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
         return {"answer": "Not enough relevant information found in the document.", "citations": []}
     top_chunks = [chunks[i] for i in top_indices]
     context = "\n\n".join([f"Page {c['page']}: {c['text']}" for c in top_chunks])
+    truncated = len(context) > MAX_CONTEXT_CHARS
+    if truncated:
+        context = context[:MAX_CONTEXT_CHARS] + "... (truncated)"
     answer = generate_answer(context, question)
+    latency = time.time() - start_time
+    log_entry = {
+        "timestamp": int(time.time()),
+        "doc_id": doc_id,
+        "question": question,
+        "latency": latency,
+        "top_k_scores": similarities[top_indices].tolist(),
+        "truncated": truncated,
+        "refused": False
+    }
+    os.makedirs(LOG_DIR, exist_ok=True)
+    with open(os.path.join(LOG_DIR, "queries.jsonl"), "a", encoding="utf-8") as f:
+        f.write(json.dumps(log_entry) + "\n")
     citations = [{"page": c["page"], "chunk_id": c["id"]} for c in top_chunks]
     return {"answer": answer, "citations": citations}
 

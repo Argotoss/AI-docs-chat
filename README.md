@@ -60,3 +60,6 @@ data/<doc_id>/
 	embeddings.npy      # float32 matrix (num_chunks x dim)
 ```
 
+## Logs
+Query logs are saved to `logs/queries.jsonl` with details: timestamp, doc_id, question, latency, top-k scores, truncated flag, refused flag.
+
