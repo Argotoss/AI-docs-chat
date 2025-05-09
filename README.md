@@ -2,6 +2,8 @@
 
 FastAPI service for uploading PDFs, processing them into knowledge bases (text extraction, chunking, embeddings), and answering questions with retrieval-augmented generation. Supports document management, quality guardrails, and optional OCR for scanned PDFs.
 
+**Didn't want to pay, so it's free:** Uses local AI models via Ollama – no cloud fees.
+
 ## Quick Start
 ```bash
 docker-compose up --build
