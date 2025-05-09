@@ -4,6 +4,7 @@ from typing import Dict, List, Iterable, Tuple
 import numpy as np
 import fitz
 import json
+import io
 
 DATA_DIR = os.path.join(os.getcwd(), "data")
 
@@ -49,6 +50,7 @@ TOP_K = int(os.getenv("TOP_K", "5"))
 SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.3"))
 MAX_ANSWER_LENGTH = int(os.getenv("MAX_ANSWER_LENGTH", "500"))
 MIN_CHUNK_LENGTH = int(os.getenv("MIN_CHUNK_LENGTH", "100"))
+ENABLE_OCR = os.getenv("ENABLE_OCR", "false").lower() == "true"
 
 
 class ProcessingError(Exception):
@@ -56,7 +58,7 @@ class ProcessingError(Exception):
 
 
 def extract_pdf_pages(pdf_path: str) -> List[Dict]:
-    """Extract raw text per page using PyMuPDF.
+    """Extract raw text per page using PyMuPDF, with OCR fallback if enabled.
 
     Returns list of dicts: {page: int, text: str}
     """
@@ -68,6 +70,16 @@ def extract_pdf_pages(pdf_path: str) -> List[Dict]:
     for i, page in enumerate(doc):
         try:
             text = page.get_text("text") or ""
+            if ENABLE_OCR and not text.strip():
+                # Fallback to OCR
+                try:
+                    import pytesseract
+                    from PIL import Image
+                    pix = page.get_pixmap()
+                    img = Image.open(io.BytesIO(pix.tobytes()))
+                    text = pytesseract.image_to_string(img) or ""
+                except Exception as ocr_e:
+                    text = ""  # OCR failed, keep empty
         except Exception:
             text = ""
         pages.append({"page": i, "text": text})
