@@ -6,6 +6,138 @@
     <title>AI Document Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+    <style>
+        /* Custom styles for markdown content */
+        .chat-message-content h1, .chat-message-content h2, .chat-message-content h3,
+        .chat-message-content h4, .chat-message-content h5, .chat-message-content h6 {
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .chat-message-content h1 { font-size: 1.5rem; }
+        .chat-message-content h2 { font-size: 1.3rem; }
+        .chat-message-content h3 { font-size: 1.1rem; }
+        .chat-message-content h4, .chat-message-content h5, .chat-message-content h6 { font-size: 1rem; }
+        
+        .chat-message-content p {
+            margin-bottom: 0.75rem;
+        }
+        
+        .chat-message-content ul, .chat-message-content ol {
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+        }
+        
+        .chat-message-content li {
+            margin-bottom: 0.25rem;
+        }
+        
+        .chat-message-content blockquote {
+            border-left: 4px solid #dee2e6;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            font-style: italic;
+            color: #6c757d;
+        }
+        
+        .chat-message-content code {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .chat-message-content pre {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+        
+        .chat-message-content pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+        }
+        
+        .chat-message-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        .chat-message-content th, .chat-message-content td {
+            border: 1px solid #dee2e6;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        
+        .chat-message-content th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .chat-message-content hr {
+            margin: 1.5rem 0;
+            border: 0;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .chat-message-content a {
+            color: #0d6efd;
+            text-decoration: underline;
+        }
+        
+        .chat-message-content a:hover {
+            color: #0b5ed7;
+        }
+        
+        .chat-message-content strong {
+            font-weight: 600;
+        }
+        
+        .chat-message-content em {
+            font-style: italic;
+        }
+        
+        /* Special styling for citations */
+        .chat-message-content hr + p em small {
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+        
+        /* Dark theme adjustments for code blocks in light messages */
+        .card.bg-white .chat-message-content code {
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        
+        .card.bg-white .chat-message-content pre {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        
+        /* Adjustments for text in primary (user) messages */
+        .card.bg-primary .chat-message-content * {
+            color: white !important;
+        }
+        
+        .card.bg-primary .chat-message-content code {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .card.bg-primary .chat-message-content pre {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .card.bg-primary .chat-message-content blockquote {
+            border-left-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container-fluid py-4">
@@ -80,6 +212,17 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/java.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/cpp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/sql.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/xml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/bash.min.js"></script>
     <script>
         // Elements
         const pdfFile = document.getElementById('pdfFile');
@@ -102,10 +245,40 @@
             </div>`;
         }
 
+        // Configure marked with custom renderer
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    try {
+                        return hljs.highlight(code, { language: lang }).value;
+                    } catch (err) {}
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            langPrefix: 'hljs language-',
+            breaks: true,
+            gfm: true
+        });
+
         function addChatMessage(content, isUser = false, isError = false) {
             const messageClass = isUser ? 'bg-primary text-white ms-5' : 
                                isError ? 'bg-danger text-white me-5' : 'bg-white border me-5';
             const icon = isUser ? 'bi-person-fill' : isError ? 'bi-exclamation-triangle-fill' : 'bi-robot';
+            
+            // Process content based on message type
+            let processedContent = content;
+            if (!isUser && !isError) {
+                // Parse markdown for AI responses
+                try {
+                    processedContent = marked.parse(content);
+                } catch (e) {
+                    console.warn('Markdown parsing failed:', e);
+                    processedContent = content; // Fallback to original content
+                }
+            } else {
+                // For user messages and errors, escape HTML to prevent injection
+                processedContent = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
             
             const messageDiv = document.createElement('div');
             messageDiv.className = `d-flex mb-3 ${isUser ? 'justify-content-end' : ''}`;
@@ -113,8 +286,8 @@
                 <div class="card ${messageClass}" style="max-width: 80%;">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-start">
-                            <i class="bi ${icon} me-2 mt-1"></i>
-                            <div>${content}</div>
+                            <i class="bi ${icon} me-2 mt-1 flex-shrink-0"></i>
+                            <div class="chat-message-content">${processedContent}</div>
                         </div>
                     </div>
                 </div>
@@ -125,6 +298,15 @@
             }
             
             chatContainer.appendChild(messageDiv);
+            
+            // Highlight code blocks after adding to DOM
+            if (!isUser && !isError) {
+                const codeBlocks = messageDiv.querySelectorAll('pre code');
+                codeBlocks.forEach(block => {
+                    hljs.highlightElement(block);
+                });
+            }
+            
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
@@ -290,7 +472,7 @@
                     let answer = data.answer;
                     if (data.citations && data.citations.length > 0) {
                         const pages = [...new Set(data.citations.map(c => c.page))];
-                        answer += `<br><small class="text-muted"><i class="bi bi-bookmark"></i> Sources: Page ${pages.join(', ')}</small>`;
+                        answer += `\n\n---\n\n*<small><i class="bi bi-bookmark"></i> Sources: Page ${pages.join(', ')}</small>*`;
                     }
                     addChatMessage(answer);
                 } else {
