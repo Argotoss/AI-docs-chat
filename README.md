@@ -24,6 +24,8 @@ docker-compose up --build
 
 Starts Ollama, pulls `nomic-embed-text` and `llama3.1:8b` models, and launches the API on port 8000.
 
+Visit `http://localhost:8000` for the web UI or use the API endpoints below.
+
 ## Demo Script
 ```bash
 # Upload a PDF
