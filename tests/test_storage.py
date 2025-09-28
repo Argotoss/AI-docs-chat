@@ -10,8 +10,8 @@ import numpy as np
 
 # Mock data
 sample_pages = [
-    {"page": 0, "text": "This is the first page with some content. It has multiple sentences."},
-    {"page": 1, "text": "Second page here. More text for testing purposes."}
+    {"page": 0, "text": "This is the first page with some content. It has multiple sentences. This is a longer text to ensure it meets the minimum chunk length requirement for testing purposes. We need at least 100 characters here."},
+    {"page": 1, "text": "Second page here. More text for testing purposes. This page also has enough content to create chunks when processed by the chunking function. Let's add more words to make it sufficiently long."}
 ]
 
 def test_yield_page_chunks():
@@ -21,7 +21,7 @@ def test_yield_page_chunks():
     assert all(len(chunk[2]) <= 20 for chunk in chunks)
 
 def test_build_chunks():
-    chunks = build_chunks("test_doc", sample_pages, chunk_chars=50, overlap=10)
+    chunks = build_chunks("test_doc", sample_pages, chunk_chars=200, overlap=10)
     assert len(chunks) > 0
     for chunk in chunks:
         assert "id" in chunk
