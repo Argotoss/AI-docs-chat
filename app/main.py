@@ -4,11 +4,18 @@ load_dotenv()
 
 import requests
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Dict, List, Union
 from . import storage
 
 api = FastAPI(title="AI Chat for Documents", version="0.0.1")
+
+api.mount("/static", StaticFiles(directory="static"), name="static")
+
+@api.get("/")
+def read_root():
+    return FileResponse("static/index.html")
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
