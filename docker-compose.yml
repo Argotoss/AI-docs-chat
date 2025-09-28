@@ -1,4 +1,5 @@
 services:
+  # Default ollama service (CPU-only)
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
@@ -13,7 +14,52 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    profiles: ["!nvidia", "!amd"]
 
+  # NVIDIA GPU service (replaces default when nvidia profile is active)
+  ollama-nvidia:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - aidocchat_ollama-data:/root/.ollama
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    runtime: nvidia
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama serve & sleep 10 && ollama pull nomic-embed-text && ollama pull llama3.1:8b && wait"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles: ["nvidia"]
+
+  # AMD GPU service (replaces default when amd profile is active)
+  ollama-amd:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - aidocchat_ollama-data:/root/.ollama
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd
+    environment:
+      - ROC_ENABLE_PRE_VEGA=1
+      - HSA_OVERRIDE_GFX_VERSION=10.3.0
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama serve & sleep 10 && ollama pull nomic-embed-text && ollama pull llama3.1:8b && wait"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    profiles: ["amd"]
+
+  # API service for CPU/default
   api:
     build: .
     restart: unless-stopped
@@ -28,6 +74,41 @@ services:
       - ./data:/app/data
     ports:
       - "8000:8000"
+    profiles: ["!nvidia", "!amd"]
+
+  # API service for NVIDIA
+  api-nvidia:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      ollama-nvidia:
+        condition: service_healthy
+    environment:
+      - OLLAMA_BASE_URL=http://ollama-nvidia:11434
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    profiles: ["nvidia"]
+
+  # API service for AMD
+  api-amd:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      ollama-amd:
+        condition: service_healthy
+    environment:
+      - OLLAMA_BASE_URL=http://ollama-amd:11434
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8000:8000"
+    profiles: ["amd"]
 
 volumes:
   aidocchat_ollama-data:

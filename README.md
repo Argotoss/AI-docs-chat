@@ -13,16 +13,26 @@ Ask Question → Embed Query → Retrieve Top-K → Build Context → Generate A
 ```
 
 ## Quick Start
+
+### CPU-only (default)
 ```bash
-# Clone repo
 git clone https://github.com/Argotoss/AI-docs-chat.git
 cd AI-docs-chat
-
-# Start services
 docker-compose up --build
 ```
 
+### With GPU acceleration
+```bash
+# For NVIDIA GPU
+docker-compose --profile nvidia up --build
+
+# For AMD GPU  
+docker-compose --profile amd up --build
+```
+
 Starts Ollama, pulls `nomic-embed-text` and `llama3.1:8b` models, and launches the API on port 8000.
+
+> **Performance Note**: GPU acceleration can reduce response times from 30+ seconds to 1-3 seconds for typical questions.
 
 Visit `http://localhost:8000` for the web UI or use the API endpoints below.
 
