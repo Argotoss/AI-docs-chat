@@ -5,7 +5,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama
+      - aidocchat_ollama-data:/root/.ollama
     entrypoint: ["/bin/sh", "-c"]
     command: ["ollama serve & sleep 10 && ollama pull nomic-embed-text && ollama pull llama3.1:8b && wait"]
     healthcheck:
@@ -30,4 +30,5 @@ services:
       - "8000:8000"
 
 volumes:
-  ollama-data:
+  aidocchat_ollama-data:
+    external: true
