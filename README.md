@@ -4,11 +4,41 @@ FastAPI service for uploading PDFs, processing them into knowledge bases (text e
 
 **Didn't want to pay, so it's free:** Uses local AI models via Ollama – no cloud fees.
 
+## Architecture Diagram
+
+```
+Upload PDF → Extract Text (PyMuPDF + OCR) → Chunk Text → Embed Chunks → Store KB
+                                                                 ↓
+Ask Question → Embed Query → Retrieve Top-K → Build Context → Generate Answer
+```
+
 ## Quick Start
 ```bash
+# Clone repo
+git clone https://github.com/Argotoss/AI-docs-chat.git
+cd AI-docs-chat
+
+# Start services
 docker-compose up --build
 ```
+
 Starts Ollama, pulls `nomic-embed-text` and `llama3.1:8b` models, and launches the API on port 8000.
+
+## Demo Script
+```bash
+# Upload a PDF
+curl -X POST "http://localhost:8000/upload" -F "file=@sample.pdf" -o upload.json
+DOC_ID=$(jq -r '.doc_id' upload.json)
+
+# Ask a question
+curl -X POST "http://localhost:8000/ask" \
+  -H "Content-Type: application/json" \
+  -d "{\"doc_id\": \"$DOC_ID\", \"question\": \"What is the main topic?\"}" \
+  -o answer.json
+
+# View answer
+cat answer.json
+```
 
 ## Endpoints
 - `GET /health` - Check API and Ollama status.
@@ -62,4 +92,9 @@ data/<doc_id>/
 
 ## Logs
 Query logs are saved to `logs/queries.jsonl` with details: timestamp, doc_id, question, latency, top-k scores, truncated flag, refused flag.
+
+## Known Issues
+- OCR requires Tesseract installed on host (for ENABLE_OCR=true).
+- Large PDFs may take time to process; tune MAX_PAGES.
+- Models must be pulled manually if not auto-pulled by Ollama.
 
